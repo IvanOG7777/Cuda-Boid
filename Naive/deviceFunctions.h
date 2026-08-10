@@ -18,31 +18,24 @@ constexpr float SEPARATION_RADIUS = 5.0f;
 
 
 struct Boid {
-    float2 position;
-    float2 velocity;
-    float mass;
     bool inPerceptionRadius = false;
     bool inSeparationRadius = false;
+    float mass = 0.0f;
+    float2 position = {};
+    float2 velocity = {};
 };
 
-__device__ float kernelDistance(Boid &boid) {
-    return sqrtf(boid.position.x * boid.position.x + boid.position.y * boid.position.y);
+inline __host__ __device__ float2 operator -(const float2 &a, const float2 &b) {
+    return {a.x - b.x, a.y - b.y};
 }
 
-__global__ void kernelFindNeighbors(Boid *boids) {
-    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+__device__ float2 kernelAwayAverage(float2 *awayVectors, unsigned int globalIndex, int validBoids);
 
-    if (globalIndex >= N_BOIDS) return;
+__device__ float kernelDistance(Boid &boid);
 
-    for (int i = 0; i < N_BOIDS; i++) {
-        if (globalIndex == i) continue;
+__device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor);
 
-        float distance = kernelDistance(boids[i]);
-
-        if (distance <= PERCEPTION_RADIUS) boids[i].inPerceptionRadius = true;
-        if (distance <= SEPARATION_RADIUS) boids[i].inSeparationRadius = true;
-    }
-}
+__global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors);
 
 
 
