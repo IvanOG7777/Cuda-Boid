@@ -4,8 +4,12 @@
 
 #include "deviceFunctions.h"
 
-__device__ float kernelDistance(Boid &boid) {
-    return sqrtf(boid.position.x * boid.position.x + boid.position.y * boid.position.y);
+#include <cstdio>
+
+__device__ float kernelDistance(const Boid &boidSelf, const Boid &boidNeighbor) {
+    float x = boidNeighbor.position.x - boidSelf.position.x;
+    float y = boidNeighbor.position.y - boidSelf.position.y;
+    return sqrtf(x * x + y * y);
 }
 
 __device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor) {
@@ -43,7 +47,8 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
     for (int i = 0; i < N_BOIDS; i++) {
         if (globalIndex == i) continue;
 
-        float distance = kernelDistance(boids[i]);
+        float distance = kernelDistance(boids[globalIndex], boids[i]);
+        printf("Distance: %.2f\n", distance);
 
         // Valid Neighbors
         if (distance <= PERCEPTION_RADIUS) boids[i].inPerceptionRadius = true, boidsWithinPerception++;
@@ -58,7 +63,7 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
     for (int i = 0; i < N_BOIDS; i++) {
         if (i == globalIndex) continue;
 
-        if (boids[i].inSeparationRadius) {
+        if (boids[i].inSeparationRadius == true) {
             awayVectors[i] = kernelAwayVector(boids[globalIndex], boids[i]);
         } else {
             awayVectors[i] = {0,0};

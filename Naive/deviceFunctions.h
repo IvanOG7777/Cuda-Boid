@@ -5,8 +5,8 @@
 #ifndef CUDA_BOID_DEVICEFUNCTIONS_H
 #define CUDA_BOID_DEVICEFUNCTIONS_H
 
-constexpr int N_BOIDS = 100000;
-constexpr int TPB = 256;
+constexpr int N_BOIDS = 10;
+constexpr int TPB = 16;
 constexpr int BLOCKS = (N_BOIDS + TPB - 1) / TPB;
 constexpr float DT = 0.0016;
 constexpr float MAX_TIME = 10.0f;
@@ -31,7 +31,7 @@ inline __host__ __device__ float2 operator -(const float2 &a, const float2 &b) {
 
 __device__ float2 kernelAwayAverage(float2 *awayVectors, unsigned int globalIndex, int validBoids);
 
-__device__ float kernelDistance(Boid &boid);
+__device__ float kernelDistance(const Boid &boidSelf, const Boid &boidNeighbor);
 
 __device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor);
 

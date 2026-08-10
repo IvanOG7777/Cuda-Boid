@@ -8,8 +8,8 @@
 
 int main() {
 
-    Boid *boids = static_cast<Boid *>(malloc(4 * sizeof(Boid)));
-    float2 *awayVectors = static_cast<float2 *>(malloc(4 * sizeof(Boid)));
+    Boid *boids = static_cast<Boid *>(malloc(N_BOIDS * sizeof(Boid)));
+    float2 *awayVectors = static_cast<float2 *>(malloc(N_BOIDS * sizeof(Boid)));
 
     assert(boids != nullptr);
     assert(awayVectors != nullptr);
@@ -26,23 +26,26 @@ int main() {
     boids[3].position = {-1.0f, 1.0f};
     boids[3].velocity = {0.5f, 0.5f};
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < N_BOIDS; i++) {
         awayVectors[i] = {0.0f, 0.0f};
     }
 
     Boid *deviceBoids = nullptr;
     float2 *deviceAwayVectors = nullptr;
 
-    cudaMalloc(&deviceBoids, 4 * sizeof(Boid));
+    cudaMalloc(&deviceBoids, N_BOIDS * sizeof(Boid));
     cudaMalloc(&deviceAwayVectors, 4 * sizeof(float2));
+
+    cudaMemcpy(deviceBoids, boids, N_BOIDS * sizeof(Boid), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceAwayVectors, awayVectors, N_BOIDS * sizeof(Boid), cudaMemcpyHostToDevice);
 
 
     kernelFindNeighbors<<<BLOCKS, TPB>>>(deviceBoids, deviceAwayVectors);
     cudaDeviceSynchronize();
 
-    cudaMemcpy(awayVectors, deviceAwayVectors, 4 * sizeof(float2), cudaMemcpyDeviceToHost);
+    cudaMemcpy(awayVectors, deviceAwayVectors, N_BOIDS * sizeof(float2), cudaMemcpyDeviceToHost);
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < N_BOIDS; i++) {
         printf("(%.2f, %.2f)\n", awayVectors[i].x, awayVectors[i].y);
     }
 
