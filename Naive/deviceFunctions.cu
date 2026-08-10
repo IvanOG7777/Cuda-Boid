@@ -48,6 +48,7 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
         if (globalIndex == i) continue;
 
         float distance = kernelDistance(boids[globalIndex], boids[i]);
+        __syncthreads();
         printf("Distance: %.2f\n", distance);
 
         // Valid Neighbors
@@ -65,6 +66,7 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
 
         if (boids[i].inSeparationRadius == true) {
             awayVectors[i] = kernelAwayVector(boids[globalIndex], boids[i]);
+            __syncthreads();
         } else {
             awayVectors[i] = {0,0};
         }

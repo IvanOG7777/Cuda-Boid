@@ -9,7 +9,7 @@
 int main() {
 
     Boid *boids = static_cast<Boid *>(malloc(N_BOIDS * sizeof(Boid)));
-    float2 *awayVectors = static_cast<float2 *>(malloc(N_BOIDS * sizeof(Boid)));
+    float2 *awayVectors = static_cast<float2 *>(malloc(N_BOIDS * sizeof(float2)));
 
     assert(boids != nullptr);
     assert(awayVectors != nullptr);
@@ -34,10 +34,10 @@ int main() {
     float2 *deviceAwayVectors = nullptr;
 
     cudaMalloc(&deviceBoids, N_BOIDS * sizeof(Boid));
-    cudaMalloc(&deviceAwayVectors, 4 * sizeof(float2));
+    cudaMalloc(&deviceAwayVectors, N_BOIDS * sizeof(float2));
 
     cudaMemcpy(deviceBoids, boids, N_BOIDS * sizeof(Boid), cudaMemcpyHostToDevice);
-    cudaMemcpy(deviceAwayVectors, awayVectors, N_BOIDS * sizeof(Boid), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceAwayVectors, awayVectors, N_BOIDS * sizeof(float2), cudaMemcpyHostToDevice);
 
 
     kernelFindNeighbors<<<BLOCKS, TPB>>>(deviceBoids, deviceAwayVectors);
@@ -49,11 +49,6 @@ int main() {
         printf("(%.2f, %.2f)\n", awayVectors[i].x, awayVectors[i].y);
     }
 
-
-
-    std:: cout << "Size of bool is: " << sizeof(bool) << std:: endl;
-    std:: cout << "Size of float is: " << sizeof(float) << std:: endl;
-    std:: cout << "Size of float2 is: " << sizeof(float2) << std:: endl;
 
     return 0;
 }
