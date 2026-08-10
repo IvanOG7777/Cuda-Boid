@@ -21,7 +21,28 @@ struct Boid {
     float2 position;
     float2 velocity;
     float mass;
+    bool inPerceptionRadius = false;
+    bool inSeparationRadius = false;
 };
+
+__device__ float kernelDistance(Boid &boid) {
+    return sqrtf(boid.position.x * boid.position.x + boid.position.y * boid.position.y);
+}
+
+__global__ void kernelFindNeighbors(Boid *boids) {
+    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (globalIndex >= N_BOIDS) return;
+
+    for (int i = 0; i < N_BOIDS; i++) {
+        if (globalIndex == i) continue;
+
+        float distance = kernelDistance(boids[i]);
+
+        if (distance <= PERCEPTION_RADIUS) boids[i].inPerceptionRadius = true;
+        if (distance <= SEPARATION_RADIUS) boids[i].inSeparationRadius = true;
+    }
+}
 
 
 
