@@ -26,9 +26,9 @@ int main() {
     boids[3].position = {-1.0f, 1.0f};
     boids[3].velocity = {0.5f, 0.5f};
 
-    for (int i = 4; i < N_BOIDS; i++) {
-        boids[i].position = {100.0f, 100.0f};
-    }
+    // for (int i = 4; i < N_BOIDS; i++) {
+    //     boids[i].position = {100.0f, 100.0f};
+    // }
 
     for (int i = 0; i < N_BOIDS; i++) {
         awayVectors[i] = {0.0f, 0.0f};

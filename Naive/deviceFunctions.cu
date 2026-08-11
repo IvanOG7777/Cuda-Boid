@@ -20,7 +20,7 @@ __device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor) {
     return resultingVector;
 }
 
-__device__ float2 kernelAwayAverage(float2 *awayVectorsIn, const int validBoids) {
+__device__ float2 kernelSeparationAverage(float2 *awayVectorsIn, const int validBoids) {
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if (globalIndex >= N_BOIDS) return {0.0f, 0.0f};
 
@@ -38,6 +38,33 @@ __device__ float2 kernelAwayAverage(float2 *awayVectorsIn, const int validBoids)
     y /= static_cast<float>(validBoids);
 
     return {x, y};
+}
+
+__device__ float2 kernelAlignment(Boid *boids, int validBoids) {
+    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (globalIndex >= N_BOIDS) return {};
+
+    float x = 0.0f;
+    float y = 0.0f;
+
+    float2 alignment = {};
+
+    for (int i = 0; i < N_BOIDS; i++) {
+        if (globalIndex == i) continue;
+
+        x += boids[i].velocity.x;
+        y += boids[i].velocity.y;
+
+    }
+
+    x /= static_cast<float>(validBoids);
+    y /= static_cast<float>(validBoids);
+
+    alignment.x = x;
+    alignment.y = y;
+
+    return alignment;
 }
 
 __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
@@ -79,9 +106,13 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
     }
     __syncthreads();
 
-    float2 average = kernelAwayAverage(localAwayVector, boidsWithinSeparation);
+    float2 averageSeparation = kernelSeparationAverage(localAwayVector, boidsWithinSeparation);
 
-    printf("Average for thread %d is: (%.2f, %.2f)\n", globalIndex, average.x, average.y);
+    printf("Average separation for thread %d is: (%.2f, %.2f)\n", globalIndex, averageSeparation.x, averageSeparation.y);
 
-    awayVectors[globalIndex] = average;
+    float2 alignment = kernelAlignment(boids, boidsWithinSeparation);
+
+    printf("Average alignment for thread %d is: (%.2f, %.2f)\n", globalIndex, alignment.x, alignment.y);
+
+    awayVectors[globalIndex] = averageSeparation;
 }
