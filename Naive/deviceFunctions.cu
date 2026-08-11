@@ -67,6 +67,32 @@ __device__ float2 kernelAlignment(Boid *boids, int validBoids) {
     return alignment;
 }
 
+__device__ float2 kernelCohesion(Boid *boids, const int validBoids) {
+    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (globalIndex >= N_BOIDS) return {};
+
+    float x = 0.0f;
+    float y = 0.0f;
+
+    float2 cohesion = {0.0f, 0.0f};
+
+    for (int i = 0; i < N_BOIDS; i++) {
+        if (globalIndex == i) continue;
+
+        x += boids[i].position.x;
+        y += boids[i].position.y;
+    }
+
+    x /= static_cast<float>(validBoids);
+    y /= static_cast<float>(validBoids);
+
+    cohesion.x = x;
+    cohesion.y = y;
+
+    return cohesion;
+}
+
 __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -112,7 +138,15 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
 
     float2 alignment = kernelAlignment(boids, boidsWithinSeparation);
 
+    alignment = alignment - boids[globalIndex].velocity;
+
     printf("Average alignment for thread %d is: (%.2f, %.2f)\n", globalIndex, alignment.x, alignment.y);
+
+    float2 cohesion = kernelCohesion(boids, boidsWithinSeparation);
+
+    cohesion = cohesion - boids[globalIndex].position;
+
+    printf("Average cohesion for thread %d is: (%.2f, %.2f)\n", globalIndex, cohesion.x, cohesion.y);
 
     awayVectors[globalIndex] = averageSeparation;
 }
