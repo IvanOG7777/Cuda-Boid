@@ -45,8 +45,14 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors, int *valid
 
     if (globalIndex >= N_BOIDS) return;
 
-    int boidsWithinPerception = 0;
-    int boidsWithinSeparation = 0;
+    __shared__ int boidsWithinPerception;
+    __shared__ int boidsWithinSeparation;
+
+    if (globalIndex == 0) {
+        boidsWithinPerception = 0;
+        boidsWithinSeparation = 0;
+    }
+    __syncthreads();
 
     for (int i = 0; i < N_BOIDS; i++) {
         if (globalIndex == i) continue;
@@ -54,11 +60,14 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors, int *valid
         float distance = kernelDistance(boids[globalIndex], boids[i]);
         printf("Distance: %.2f\n", distance);
 
-        // Valid Neighbors
-        //TODO: With 4 valid values on each loop and thread its recounting already valid boids. Valid boids should be 3 but im getting 9
-        // maybe add another flag
-        if (distance <= PERCEPTION_RADIUS) boids[i].inPerceptionRadius = true, boidsWithinPerception++;
-        if (distance <= SEPARATION_RADIUS) boids[i].inSeparationRadius = true, boidsWithinSeparation++;
+        if (distance <= PERCEPTION_RADIUS) {
+            boids[i].inPerceptionRadius = true;
+            atomicAdd(&boidsWithinPerception, 1);
+        }
+        if (distance <= SEPARATION_RADIUS) {
+            boids[i].inSeparationRadius = true;
+            atomicAdd(&boidsWithinSeparation, 1);
+        }
 
         // Too far
         if (distance > PERCEPTION_RADIUS) boids[i].inPerceptionRadius = false;
@@ -66,7 +75,9 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors, int *valid
     }
     __syncthreads();
 
-    validBoids[0] = boidsWithinSeparation;
+    if (globalIndex == 0) {
+        validBoids[0] = boidsWithinSeparation;
+    }
 
     // calculate each away vector within separation radius
     for (int i = 0; i < N_BOIDS; i++) {
