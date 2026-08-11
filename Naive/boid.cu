@@ -10,8 +10,6 @@ int main() {
 
     Boid *boids = static_cast<Boid *>(malloc(N_BOIDS * sizeof(Boid)));
     float2 *awayVectors = static_cast<float2 *>(malloc(N_BOIDS * sizeof(float2)));
-    float2 *averageHost = static_cast<float2 *>(malloc(sizeof(float)));
-    int *validBoids = static_cast<int *>(malloc(sizeof(int)));
 
     assert(boids != nullptr);
     assert(awayVectors != nullptr);
@@ -29,7 +27,7 @@ int main() {
     boids[3].velocity = {0.5f, 0.5f};
 
     for (int i = 4; i < N_BOIDS; i++) {
-        boids[i] = {};
+        boids[i].position = {100.0f, 100.0f};
     }
 
     for (int i = 0; i < N_BOIDS; i++) {
@@ -50,25 +48,15 @@ int main() {
     cudaMemcpy(deviceAwayVectors, awayVectors, N_BOIDS * sizeof(float2), cudaMemcpyHostToDevice);
 
 
-    kernelFindNeighbors<<<BLOCKS, TPB>>>(deviceBoids, deviceAwayVectors, deviceValidBoids);
-    cudaDeviceSynchronize();
-    kernelAwayAverage<<<BLOCKS, TPB>>>(deviceAwayVectors, deviceValidBoids, deviceAverageOut);
+    kernelFindNeighbors<<<BLOCKS, TPB>>>(deviceBoids, deviceAwayVectors);
     cudaDeviceSynchronize();
 
     cudaMemcpy(awayVectors, deviceAwayVectors, N_BOIDS * sizeof(float2), cudaMemcpyDeviceToHost);
-    cudaMemcpy(averageHost, deviceAverageOut, sizeof(float2), cudaMemcpyDeviceToHost);
-    cudaMemcpy(validBoids, deviceValidBoids, sizeof(int), cudaMemcpyDeviceToHost);
 
     for (int i = 0; i < N_BOIDS; i++) {
         printf("(%.2f, %.2f)\n", awayVectors[i].x, awayVectors[i].y);
     }
 
-    std:: cout << std:: endl;
-    std:: cout << std:: endl;
-
-    // Wrong average and boid count
-    std:: cout << "Average separation is: " << averageHost->x << ", " << averageHost->y << std:: endl;
-    std:: cout << "Valid boid count is: " << *validBoids << std:: endl;
 
 
     return 0;

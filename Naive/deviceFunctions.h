@@ -29,13 +29,13 @@ inline __host__ __device__ float2 operator -(const float2 &a, const float2 &b) {
     return {a.x - b.x, a.y - b.y};
 }
 
-__global__ void kernelAwayAverage(float2 *awayVectorsIn, int *validBoids, float2 *averageOut);
+__device__ float2 kernelAwayAverage(float2 *awayVectorsIn, const int validBoids);
 
 __device__ float kernelDistance(const Boid &boidSelf, const Boid &boidNeighbor);
 
 __device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor);
 
-__global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors, int *validBoids);
+__global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors);
 
 
 

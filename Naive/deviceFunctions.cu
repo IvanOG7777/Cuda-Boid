@@ -20,12 +20,13 @@ __device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor) {
     return resultingVector;
 }
 
-__global__ void kernelAwayAverage(float2 *awayVectorsIn, int *validBoids, float2 *averageOut) {
+__device__ float2 kernelAwayAverage(float2 *awayVectorsIn, const int validBoids) {
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
-    if (globalIndex >= N_BOIDS) return;
+    if (globalIndex >= N_BOIDS) return {0.0f, 0.0f};
 
     float x = 0.0f;
     float y = 0.0f;
+
     for (int i = 0; i < N_BOIDS; i++) {
         if (globalIndex == i) continue;
 
@@ -33,61 +34,54 @@ __global__ void kernelAwayAverage(float2 *awayVectorsIn, int *validBoids, float2
         y += awayVectorsIn[i].y;
     }
 
-    x /= static_cast<float>(validBoids[0]);
-    y /= static_cast<float>(validBoids[0]);
+    x /= static_cast<float>(validBoids);
+    y /= static_cast<float>(validBoids);
 
-    averageOut->x = x;
-    averageOut->y = y;
+    return {x, y};
 }
 
-__global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors, int *validBoids) {
+__global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (globalIndex >= N_BOIDS) return;
 
-    __shared__ int boidsWithinPerception;
-    __shared__ int boidsWithinSeparation;
+     int boidsWithinPerception = 0;
+     int boidsWithinSeparation = 0;
 
-    if (globalIndex == 0) {
-        boidsWithinPerception = 0;
-        boidsWithinSeparation = 0;
-    }
-    __syncthreads();
+    float2 localAwayVector[N_BOIDS];
 
     for (int i = 0; i < N_BOIDS; i++) {
         if (globalIndex == i) continue;
 
         float distance = kernelDistance(boids[globalIndex], boids[i]);
-        printf("Distance: %.2f\n", distance);
 
         if (distance <= PERCEPTION_RADIUS) {
-            boids[i].inPerceptionRadius = true;
-            atomicAdd(&boidsWithinPerception, 1);
+            boidsWithinPerception++;
         }
         if (distance <= SEPARATION_RADIUS) {
-            boids[i].inSeparationRadius = true;
-            atomicAdd(&boidsWithinSeparation, 1);
+            boidsWithinSeparation++;
         }
 
-        // Too far
-        if (distance > PERCEPTION_RADIUS) boids[i].inPerceptionRadius = false;
-        if (distance > SEPARATION_RADIUS) boids[i].inSeparationRadius = false;
     }
     __syncthreads();
-
-    if (globalIndex == 0) {
-        validBoids[0] = boidsWithinSeparation;
-    }
 
     // calculate each away vector within separation radius
     for (int i = 0; i < N_BOIDS; i++) {
         if (i == globalIndex) continue;
 
-        if (boids[i].inSeparationRadius == true) {
-            awayVectors[i] = kernelAwayVector(boids[globalIndex], boids[i]);
+        float distance = kernelDistance(boids[globalIndex], boids[i]);
+
+        if (distance <= SEPARATION_RADIUS) {
+            localAwayVector[i] = kernelAwayVector(boids[globalIndex], boids[i]);
         } else {
-            awayVectors[i] = {0,0};
+            localAwayVector[i] = {0,0};
         }
     }
     __syncthreads();
+
+    float2 average = kernelAwayAverage(localAwayVector, boidsWithinSeparation);
+
+    printf("Average for thread %d is: (%.2f, %.2f)\n", globalIndex, average.x, average.y);
+
+    awayVectors[globalIndex] = average;
 }
