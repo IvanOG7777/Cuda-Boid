@@ -26,10 +26,6 @@ int main() {
     boids[3].position = {-1.0f, 1.0f};
     boids[3].velocity = {0.5f, 0.5f};
 
-    // for (int i = 4; i < N_BOIDS; i++) {
-    //     boids[i].position = {100.0f, 100.0f};
-    // }
-
     for (int i = 0; i < N_BOIDS; i++) {
         awayVectors[i] = {0.0f, 0.0f};
     }
@@ -48,16 +44,8 @@ int main() {
     cudaMemcpy(deviceAwayVectors, awayVectors, N_BOIDS * sizeof(float2), cudaMemcpyHostToDevice);
 
 
-    kernelFindNeighbors<<<BLOCKS, TPB>>>(deviceBoids, deviceAwayVectors);
+    kernelRunBoids<<<BLOCKS, TPB>>>(deviceBoids);
     cudaDeviceSynchronize();
-
-    cudaMemcpy(awayVectors, deviceAwayVectors, N_BOIDS * sizeof(float2), cudaMemcpyDeviceToHost);
-
-    for (int i = 0; i < N_BOIDS; i++) {
-        printf("(%.2f, %.2f)\n", awayVectors[i].x, awayVectors[i].y);
-    }
-
-
 
     return 0;
 }

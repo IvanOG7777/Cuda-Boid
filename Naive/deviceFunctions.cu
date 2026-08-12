@@ -93,7 +93,27 @@ __device__ float2 kernelCohesion(Boid *boids, const int validBoids) {
     return cohesion;
 }
 
-__global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
+__device__ float2 kernelMakeBoidAcceleration(const float2 separation, const float2 alignment, const float2 cohesion) {
+    float2 acceleration = {};
+
+    acceleration.x = (SEPARATION_WEIGHT * separation.x) + (ALIGNMENT_WEIGHT * alignment.x) + (COHESION_WEIGHT * cohesion.x);
+    acceleration.y = (SEPARATION_WEIGHT * separation.y) + (ALIGNMENT_WEIGHT * alignment.y) + (COHESION_WEIGHT * cohesion.y);
+
+    return acceleration;
+}
+
+__device__ void kernelIntegrateBoid(Boid &boid, const float2 acceleration) {
+    float2 newVelocity = {};
+    float2 newPosition = {};
+
+    newVelocity = boid.velocity + (acceleration * DT);
+    newPosition = boid.position + (newVelocity * DT);
+
+    boid.velocity = newVelocity;
+    boid.position = newPosition;
+}
+
+__global__ void kernelRunBoids(Boid *boids) {
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (globalIndex >= N_BOIDS) return;
@@ -134,19 +154,41 @@ __global__ void kernelFindNeighbors(Boid *boids, float2 *awayVectors) {
 
     float2 averageSeparation = kernelSeparationAverage(localAwayVector, boidsWithinSeparation);
 
-    printf("Average separation for thread %d is: (%.2f, %.2f)\n", globalIndex, averageSeparation.x, averageSeparation.y);
-
     float2 alignment = kernelAlignment(boids, boidsWithinSeparation);
 
     alignment = alignment - boids[globalIndex].velocity;
-
-    printf("Average alignment for thread %d is: (%.2f, %.2f)\n", globalIndex, alignment.x, alignment.y);
 
     float2 cohesion = kernelCohesion(boids, boidsWithinSeparation);
 
     cohesion = cohesion - boids[globalIndex].position;
 
-    printf("Average cohesion for thread %d is: (%.2f, %.2f)\n", globalIndex, cohesion.x, cohesion.y);
+    float2 acceleration = kernelMakeBoidAcceleration(averageSeparation, alignment, cohesion);
 
-    awayVectors[globalIndex] = averageSeparation;
+    kernelIntegrateBoid(boids[globalIndex], acceleration);
+}
+
+__device__ void kernelInitState(curandState *states, const unsigned int seed) {
+    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (globalIndex >= N_BOIDS) return;
+
+    curand_init(seed, globalIndex, 0, &states[globalIndex]);
+}
+__device__ float2 kernelRandFloat2(curandState *state) {
+    float2 rand = {};
+
+    rand.x = curand_uniform(state);
+    rand.y = curand_uniform(state);
+
+    return rand;
+}
+__global__ void kernelLoadBoids(Boid *boids, curandState *states, const unsigned int seed) {
+    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (globalIndex >= N_BOIDS) return;
+
+    kernelInitState(states, seed);
+
+    boids[globalIndex].position = kernelRandFloat2(&states[globalIndex]);
+    boids[globalIndex].velocity = kernelRandFloat2(&states[globalIndex]);
 }
