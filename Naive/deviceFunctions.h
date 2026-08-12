@@ -8,9 +8,9 @@
 #include <curand_kernel.h>
 
 constexpr int N_BOIDS = 4;
-constexpr int TPB = 16;
+constexpr int TPB = 32;
 constexpr int BLOCKS = (N_BOIDS + TPB - 1) / TPB;
-constexpr float DT = 0.0016;
+constexpr float DT = 1;
 constexpr float MAX_TIME = 10.0f;
 constexpr float SEPARATION_WEIGHT = 1.5f;
 constexpr float ALIGNMENT_WEIGHT = 1.0f;
@@ -21,8 +21,8 @@ constexpr float SEPARATION_RADIUS = 5.0f;
 
 struct Boid {
     float mass = 0.0f;
-    float2 position = {};
-    float2 velocity = {};
+    float2 position = {0.0f, 0.0f};
+    float2 velocity = {0.0f, 0.0f};
 };
 
 inline __host__ __device__ float2 operator -(const float2 &a, const float2 &b) {
