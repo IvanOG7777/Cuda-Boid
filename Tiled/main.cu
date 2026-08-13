@@ -6,6 +6,11 @@
 #include "deviceFunctions.cuh"
 
 int main() {
-    std:: cout << "Hello from tiled main" << std:: endl;
+    Boid *deviceBoids = nullptr;
+    cudaError_t boidsMalloc = cudaMalloc(&deviceBoids, N_BOIDS * sizeof(Boid));
+    if (boidsMalloc != cudaSuccess) {
+        std:: cerr << "Fail to allocate memory for device boids\n";
+        exit(EXIT_FAILURE);
+    }
     return 0;
 }

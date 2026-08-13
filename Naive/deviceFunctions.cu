@@ -20,7 +20,6 @@ __device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor) {
     return resultingVector;
 }
 
-// TODO: make helper functions separation/alignment/cohesion to only count valid boids at index i and not all boids
 __device__ float2 kernelSeparationAverage(float2 *awayVectorsIn, const int validBoids) {
     if (validBoids == 0) return {0.0f, 0.0f};
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
