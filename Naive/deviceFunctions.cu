@@ -12,7 +12,7 @@ __device__ float kernelDistance(const Boid &boidSelf, const Boid &boidNeighbor) 
     return sqrtf(x * x + y * y);
 }
 
-__device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor) {
+__device__ float2 kernelMakeAwayVector(Boid &boidSelf, Boid &boidNeighbor) {
     float2 resultingVector = {};
 
     resultingVector = boidSelf.position - boidNeighbor.position;

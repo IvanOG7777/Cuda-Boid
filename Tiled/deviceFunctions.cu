@@ -19,6 +19,7 @@ __device__ float2 kernelCalculateAwayVector(Boid &boidSelf, Boid &boidNeighbor) 
 // We are assuming here that all values passed are valid
 /////
 __device__ float2 kernelSeparationAverage(const float2 *validAwayVectors, const int validBoidCount) {
+    if (validBoidCount == 0) return {0.0f};
     float2 average = {0.0f, 0.0f};
     for (int i = 0; i < validBoidCount; i++) {
         average.x += validAwayVectors[i].x;
@@ -37,8 +38,8 @@ __device__ float2 kernelAlignmentAverage(const Boid *validBoids, int validBoidCo
     float2 alignment = {0.0f, 0.0f};
 
     for (int i = 0; i < validBoidCount; i++) {
-        alignment.x += validBoids->velocity.x;
-        alignment.y += validBoids->velocity.y;
+        alignment.x += validBoids[i].velocity.x;
+        alignment.y += validBoids[i].velocity.y;
     }
 
     alignment.x /= static_cast<float>(validBoidCount);
@@ -67,21 +68,66 @@ __device__ float2 kernelCohesionAverage(const Boid *validBoids, int validBoidCou
 __device__ float2 kernelCalculateAcceleration(float2 averageSeparation, float2 averageAlignment, float2 averageCohesion) {
     float2 acceleration = {0.0f, 0.0f};
 
-    acceleration.x = SEPARATION_WEIGHT * averageSeparation.x + ALIGNMENT_WEIGHT * averageAlignment.x + COHESION_WEIGHT * averageAlignment.x;
-    acceleration.y = SEPARATION_WEIGHT * averageSeparation.y + ALIGNMENT_WEIGHT * averageAlignment.y + COHESION_WEIGHT * averageAlignment.y;
+    acceleration.x = SEPARATION_WEIGHT * averageSeparation.x + ALIGNMENT_WEIGHT * averageAlignment.x + COHESION_WEIGHT * averageCohesion.x;
+    acceleration.y = SEPARATION_WEIGHT * averageSeparation.y + ALIGNMENT_WEIGHT * averageAlignment.y + COHESION_WEIGHT * averageCohesion.y;
 
     return acceleration;
 }
 
 __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut) {
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int localThread = threadIdx.x;
 
-    if (globalIndex >= N_BOIDS) return;
+    __shared__ Boid blockBoids[TPB];
 
-    __shared__ float2 awayVectors[TPB] = {};
-    __shared__ Boid validBoid[TPB] = {};
+    if (globalIndex < N_BOIDS) {
+        blockBoids[localThread] = boids[globalIndex];
+    } else {
+        blockBoids[localThread] = Boid{};
+    }
 
-    
+    __shared__ float2 awayVectors[N_BOIDS] = {};
+    __shared__ Boid validBoids[N_BOIDS] = {};
+
+    int boidsWithinPerception = 0;
+    int boidsWithinSeparation = 0;
+
+    int awayVectorIndex = 0;
+    int validBoidsIndex = 0;
+
+    for (int i = 0; i < N_BOIDS; i++) {
+        if (globalIndex == i) continue;
+
+        float distance = kernelDistanceBoidAB(boids[globalIndex], boids[i]);
+
+        if (distance <= PERCEPTION_RADIUS) {
+            boidsWithinPerception++;
+        }
+
+        if (distance <= SEPARATION_RADIUS) {
+            boidsWithinSeparation++;
+            awayVectors[awayVectorIndex++] = kernelCalculateAwayVector(boids[globalIndex], boids[i]);
+        }
+    }
+
+    for (int i = 0; i < N_BOIDS; i++) {
+        if (globalIndex == i) continue;
+        float distance = kernelDistanceBoidAB(boids[globalIndex], boids[i]);
+
+        if (distance <= PERCEPTION_RADIUS) {
+            validBoids[validBoidsIndex++] = boids[i];
+        }
+    }
+
+    float2 averageSeparation = kernelSeparationAverage(awayVectors, boidsWithinSeparation);
+    float2 averageAlignment = kernelAlignmentAverage(validBoids, boidsWithinPerception);
+    float2 averageCohesion = kernelCohesionAverage(validBoids, boidsWithinPerception);
+
+    averageAlignment = averageAlignment - boids[globalIndex].velocity;
+    averageCohesion = averageCohesion - boids[globalIndex].position;
+
+    float2 acceleration = kernelCalculateAcceleration(averageSeparation, averageAlignment, averageCohesion);
+
 }
 
 __global__ void integrateBoids(Boid *boids, const float2 *accelerationIn) {
