@@ -10,7 +10,7 @@
 constexpr int N_BOIDS = 4;
 constexpr int TPB = 32;
 constexpr int BLOCKS = (N_BOIDS + TPB - 1) / TPB;
-constexpr float DT = 1;
+constexpr float DT = 0.016;
 constexpr float MAX_TIME = 10.0f;
 constexpr float SEPARATION_WEIGHT = 1.5f;
 constexpr float ALIGNMENT_WEIGHT = 1.0f;

@@ -18,6 +18,12 @@ add_executable(BoidNaive
         Naive/deviceFunctions.h
 )
 
+add_executable(BoidTiled
+        Tiled/main.cu
+        Tiled/deviceFunctions.cu
+        Tiled/deviceFunctions.cuh
+)
+
 #target_include_directories(Visual-N-Body PRIVATE
 #        ${CMAKE_SOURCE_DIR}/Visual/Libraries/include
 #)

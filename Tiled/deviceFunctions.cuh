@@ -1,0 +1,13 @@
+//
+// Created by elder on 8/12/2026.
+//
+
+#ifndef CUDAPRACTICE_DEVICEFUNCTIONS_CUH
+#define CUDAPRACTICE_DEVICEFUNCTIONS_CUH
+
+
+class deviceFunctions {
+};
+
+
+#endif //CUDAPRACTICE_DEVICEFUNCTIONS_CUH
