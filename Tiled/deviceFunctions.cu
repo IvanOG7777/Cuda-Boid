@@ -80,14 +80,16 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
 
     __shared__ Boid blockBoids[TPB];
 
+    // load boids to local block memory
     if (globalIndex < N_BOIDS) {
         blockBoids[localThread] = boids[globalIndex];
     } else {
         blockBoids[localThread] = Boid{};
     }
+    __syncthreads();
 
-    __shared__ float2 awayVectors[N_BOIDS] = {};
-    __shared__ Boid validBoids[N_BOIDS] = {};
+    __shared__ float2 awayVectors[TPB] = {};
+    __shared__ Boid validBoids[TPB] = {};
 
     int boidsWithinPerception = 0;
     int boidsWithinSeparation = 0;
@@ -95,10 +97,10 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
     int awayVectorIndex = 0;
     int validBoidsIndex = 0;
 
-    for (int i = 0; i < N_BOIDS; i++) {
-        if (globalIndex == i) continue;
+    for (int i = 0; i < TPB; i++) {
+        if (localThread == i) continue;
 
-        float distance = kernelDistanceBoidAB(boids[globalIndex], boids[i]);
+        float distance = kernelDistanceBoidAB(boids[globalIndex], blockBoids[i]);
 
         if (distance <= PERCEPTION_RADIUS) {
             boidsWithinPerception++;
@@ -106,18 +108,20 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
 
         if (distance <= SEPARATION_RADIUS) {
             boidsWithinSeparation++;
-            awayVectors[awayVectorIndex++] = kernelCalculateAwayVector(boids[globalIndex], boids[i]);
+            awayVectors[awayVectorIndex++] = kernelCalculateAwayVector(boids[globalIndex], blockBoids[i]);
         }
     }
+    __syncthreads();
 
-    for (int i = 0; i < N_BOIDS; i++) {
-        if (globalIndex == i) continue;
-        float distance = kernelDistanceBoidAB(boids[globalIndex], boids[i]);
+    for (int i = 0; i < TPB; i++) {
+        if (localThread == i) continue;
+        float distance = kernelDistanceBoidAB(boids[globalIndex], blockBoids[i]);
 
         if (distance <= PERCEPTION_RADIUS) {
-            validBoids[validBoidsIndex++] = boids[i];
+            validBoids[validBoidsIndex++] = blockBoids[i];
         }
     }
+    __syncthreads();
 
     float2 averageSeparation = kernelSeparationAverage(awayVectors, boidsWithinSeparation);
     float2 averageAlignment = kernelAlignmentAverage(validBoids, boidsWithinPerception);
