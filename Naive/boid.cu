@@ -26,10 +26,12 @@ int main() {
     Boid *deviceBoids = nullptr;
     float2 *deviceAverageOut = nullptr;
     int *deviceValidBoids = nullptr;
+    float2 *deviceAcceleration = nullptr;
 
     cudaMalloc(&deviceBoids, N_BOIDS * sizeof(Boid));
     cudaMalloc(&deviceAverageOut, sizeof(float2));
     cudaMalloc(&deviceValidBoids, sizeof(int));
+    cudaMalloc(&deviceAcceleration, N_BOIDS * sizeof(float2));
 
     cudaMemcpy(deviceBoids, boids, N_BOIDS * sizeof(Boid), cudaMemcpyHostToDevice);
 
@@ -37,15 +39,16 @@ int main() {
     float currentTime = 0.0f;
     while (currentTime <= MAX_TIME) {
 
-        kernelRunBoids<<<BLOCKS, TPB>>>(deviceBoids);
+        kernelRunBoids<<<BLOCKS, TPB>>>(deviceBoids, deviceAcceleration);
         cudaDeviceSynchronize();
+        kernelIntegrateBoid<<<BLOCKS, TPB>>>(deviceBoids, deviceAcceleration);
 
         cudaMemcpy(boids, deviceBoids, N_BOIDS * sizeof(Boid), cudaMemcpyDeviceToHost);
 
         for (int i = 0; i < N_BOIDS; i++) {
             printf("Boid at index: %d\n", i);
             printf("Position: (%.2f, %.2f)\n", boids[i].position.x, boids[i].position.y);
-            printf("Acceleration: (%.2f, %.2f)\n", boids[i].velocity.x, boids[i].velocity.y);
+            printf("Velocity: (%.2f, %.2f)\n", boids[i].velocity.x, boids[i].velocity.y);
             printf("\n");
         }
         currentTime += DT;

@@ -52,7 +52,8 @@ __device__ float kernelDistance(const Boid &boidSelf, const Boid &boidNeighbor);
 
 __device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor);
 
-__global__ void kernelRunBoids(Boid *boids);
+__global__ void kernelRunBoids(Boid *boids, float2 *accelerationOut);
+__global__ void kernelIntegrateBoid(Boid *boid, const float2 *acceleration);
 
 __device__ void kernelInitState(curandState *states, const unsigned int seed);
 __device__ float2 kernelRandFloat2(curandState *state);

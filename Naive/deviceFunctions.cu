@@ -22,12 +22,14 @@ __device__ float2 kernelAwayVector(Boid &boidSelf, Boid &boidNeighbor) {
 
 // TODO: make helper functions separation/alignment/cohesion to only count valid boids at index i and not all boids
 __device__ float2 kernelSeparationAverage(float2 *awayVectorsIn, const int validBoids) {
+    if (validBoids == 0) return {0.0f, 0.0f};
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if (globalIndex >= N_BOIDS) return {0.0f, 0.0f};
 
     float x = 0.0f;
     float y = 0.0f;
 
+    // Loop through all boids but invalid vectors at i would be {0,0}, doesnt change anything
     for (int i = 0; i < N_BOIDS; i++) {
         if (globalIndex == i) continue;
 
@@ -41,18 +43,16 @@ __device__ float2 kernelSeparationAverage(float2 *awayVectorsIn, const int valid
     return {x, y};
 }
 
+//Takes in array of valid boids and their count
+// When entering this function all of *boids should be valid
 __device__ float2 kernelAlignment(Boid *boids, int validBoids) {
-    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (globalIndex >= N_BOIDS) return {};
-
+    if (validBoids == 0) return {0.0f, 0.0f};
     float x = 0.0f;
     float y = 0.0f;
 
     float2 alignment = {};
 
-    for (int i = 0; i < N_BOIDS; i++) {
-        if (globalIndex == i) continue;
+    for (int i = 0; i < validBoids; i++) {
 
         x += boids[i].velocity.x;
         y += boids[i].velocity.y;
@@ -68,19 +68,17 @@ __device__ float2 kernelAlignment(Boid *boids, int validBoids) {
     return alignment;
 }
 
+//Takes in array of valid boids and their count
+// When entering this function all of *boids should be valid
 __device__ float2 kernelCohesion(Boid *boids, const int validBoids) {
-    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (globalIndex >= N_BOIDS) return {};
-
+    if (validBoids == 0) return {0.0f, 0.0f};
     float x = 0.0f;
     float y = 0.0f;
 
     float2 cohesion = {0.0f, 0.0f};
 
-    for (int i = 0; i < N_BOIDS; i++) {
-        if (globalIndex == i) continue;
-
+    // loop though validBoids
+    for (int i = 0; i < validBoids; i++) {
         x += boids[i].position.x;
         y += boids[i].position.y;
     }
@@ -103,18 +101,7 @@ __device__ float2 kernelMakeBoidAcceleration(const float2 separation, const floa
     return acceleration;
 }
 
-__device__ void kernelIntegrateBoid(Boid &boid, const float2 acceleration) {
-    float2 newVelocity = {};
-    float2 newPosition = {};
-
-    newVelocity = boid.velocity + (acceleration * DT);
-    newPosition = boid.position + (newVelocity * DT);
-
-    boid.velocity = newVelocity;
-    boid.position = newPosition;
-}
-
-__global__ void kernelRunBoids(Boid *boids) {
+__global__ void kernelRunBoids(Boid *boids, float2 *accelerationOut) {
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (globalIndex >= N_BOIDS) return;
@@ -122,7 +109,8 @@ __global__ void kernelRunBoids(Boid *boids) {
      int boidsWithinPerception = 0;
      int boidsWithinSeparation = 0;
 
-    float2 localAwayVector[N_BOIDS];
+    float2 localAwayVector[N_BOIDS] = {};
+    Boid perceptionBoids[N_BOIDS] = {};
 
     for (int i = 0; i < N_BOIDS; i++) {
         if (globalIndex == i) continue;
@@ -133,39 +121,50 @@ __global__ void kernelRunBoids(Boid *boids) {
             boidsWithinPerception++;
         }
         if (distance <= SEPARATION_RADIUS) {
-            boidsWithinSeparation++;
-        }
-
-    }
-    __syncthreads();
-
-    // calculate each away vector within separation radius
-    for (int i = 0; i < N_BOIDS; i++) {
-        if (i == globalIndex) continue;
-
-        float distance = kernelDistance(boids[globalIndex], boids[i]);
-
-        if (distance <= SEPARATION_RADIUS) {
             localAwayVector[i] = kernelAwayVector(boids[globalIndex], boids[i]);
+            boidsWithinSeparation++;
         } else {
             localAwayVector[i] = {0,0};
         }
     }
-    __syncthreads();
+
+    int perceptionCount = 0;
+
+    for (int i = 0; i < N_BOIDS; i++) {
+        if (globalIndex == i) continue;
+        float distance = kernelDistance(boids[globalIndex], boids[i]);
+
+        if (distance <= PERCEPTION_RADIUS) {
+            perceptionBoids[perceptionCount++] = boids[i]; // by this time will only hold boidsWithinPerception valid boids
+        }
+    }
 
     float2 averageSeparation = kernelSeparationAverage(localAwayVector, boidsWithinSeparation);
 
-    float2 alignment = kernelAlignment(boids, boidsWithinPerception);
+    float2 alignment = kernelAlignment(perceptionBoids, boidsWithinPerception);
 
     alignment = alignment - boids[globalIndex].velocity;
 
-    float2 cohesion = kernelCohesion(boids, boidsWithinPerception);
+    float2 cohesion = kernelCohesion(perceptionBoids, boidsWithinPerception);
 
     cohesion = cohesion - boids[globalIndex].position;
 
     float2 acceleration = kernelMakeBoidAcceleration(averageSeparation, alignment, cohesion);
 
-    kernelIntegrateBoid(boids[globalIndex], acceleration);
+    accelerationOut[globalIndex] = acceleration;
+}
+
+__global__ void kernelIntegrateBoid(Boid *boid, const float2 *acceleration) {
+    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    if (globalIndex >= N_BOIDS) return;
+    float2 newVelocity = {};
+    float2 newPosition = {};
+
+    newVelocity = boid[globalIndex].velocity + (acceleration[globalIndex] * DT);
+    newPosition = boid[globalIndex].position + (newVelocity * DT);
+
+    boid[globalIndex].velocity = newVelocity;
+    boid[globalIndex].position = newPosition;
 }
 
 __device__ void kernelInitState(curandState *states, const unsigned int seed) {
