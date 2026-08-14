@@ -100,30 +100,33 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
     int awayVectorIndex = 0;
     int validBoidsIndex = 0;
 
-    for (int i = 0; i < TPB; i++) {
-        if (localThread == i) continue;
-        if (blockBoids[i].valid == false) continue;
+    for (int tile = 0; tile < BLOCKS; tile++) {
 
-        float distance = kernelDistanceBoidAB(boids[globalIndex], blockBoids[i]);
+        for (int i = 0; i < TPB; i++) {
+            if (localThread == i) continue;
+            if (blockBoids[i].valid == false) continue;
 
-        if (distance <= PERCEPTION_RADIUS) {
-            boidsWithinPerception++;
+            float distance = kernelDistanceBoidAB(boids[globalIndex], blockBoids[i]);
+
+            if (distance <= PERCEPTION_RADIUS) {
+                boidsWithinPerception++;
+            }
+
+            if (distance <= SEPARATION_RADIUS) {
+                boidsWithinSeparation++;
+                awayVectors[awayVectorIndex++] = kernelCalculateAwayVector(boids[globalIndex], blockBoids[i]);
+            }
         }
+        __syncthreads(); // wait for threads to finish in order to use awayVectors
 
-        if (distance <= SEPARATION_RADIUS) {
-            boidsWithinSeparation++;
-            awayVectors[awayVectorIndex++] = kernelCalculateAwayVector(boids[globalIndex], blockBoids[i]);
-        }
-    }
-    __syncthreads(); // wait for threads to finish in order to use awayVectors
+        for (int i = 0; i < TPB; i++) {
+            if (localThread == i) continue;
+            if (blockBoids[i].valid == false) continue;
+            float distance = kernelDistanceBoidAB(boids[globalIndex], blockBoids[i]);
 
-    for (int i = 0; i < TPB; i++) {
-        if (localThread == i) continue;
-        if (blockBoids[i].valid == false) continue;
-        float distance = kernelDistanceBoidAB(boids[globalIndex], blockBoids[i]);
-
-        if (distance <= PERCEPTION_RADIUS) {
-            validBoids[validBoidsIndex++] = blockBoids[i];
+            if (distance <= PERCEPTION_RADIUS) {
+                validBoids[validBoidsIndex++] = blockBoids[i];
+            }
         }
     }
     __syncthreads(); // wait for thread to finish in order to use validBoids
