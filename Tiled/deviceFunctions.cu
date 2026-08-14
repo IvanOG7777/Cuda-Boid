@@ -5,6 +5,7 @@
 #include "deviceFunctions.cuh"
 
 __device__ float kernelDistanceBoidAB(const Boid &boidSelf, const Boid &boidNeighbor) {
+    if (boidSelf.valid == false || boidNeighbor.valid == false) return 0.0f;
     float x = boidNeighbor.position.x - boidSelf.position.x;
     float y = boidNeighbor.position.y - boidSelf.position.y;
 
@@ -12,6 +13,7 @@ __device__ float kernelDistanceBoidAB(const Boid &boidSelf, const Boid &boidNeig
 }
 
 __device__ float2 kernelCalculateAwayVector(Boid &boidSelf, Boid &boidNeighbor) {
+    if (boidSelf.valid == false || boidNeighbor.valid == false) return {0.0f, 0.0f};
     return boidSelf.position - boidNeighbor.position;
 }
 
@@ -78,18 +80,19 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int localThread = threadIdx.x;
 
-    __shared__ Boid blockBoids[TPB];
+    __shared__ Boid blockBoids[TPB]; // create a shared array of boids for current block. (All threads of this block can see it)
 
-    // load boids to local block memory
+    // load boids from global to local block memory
     if (globalIndex < N_BOIDS) {
         blockBoids[localThread] = boids[globalIndex];
+        blockBoids[localThread].valid = true; // only change local block state of boid to true
     } else {
         blockBoids[localThread] = Boid{};
     }
-    __syncthreads();
+    __syncthreads(); // wait for threads to finish in order to use blockBoids
 
-    __shared__ float2 awayVectors[TPB] = {};
-    __shared__ Boid validBoids[TPB] = {};
+    float2 awayVectors[TPB] = {};
+    Boid validBoids[TPB] = {};
 
     int boidsWithinPerception = 0;
     int boidsWithinSeparation = 0;
@@ -99,6 +102,7 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
 
     for (int i = 0; i < TPB; i++) {
         if (localThread == i) continue;
+        if (blockBoids[i].valid == false) continue;
 
         float distance = kernelDistanceBoidAB(boids[globalIndex], blockBoids[i]);
 
@@ -111,17 +115,18 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
             awayVectors[awayVectorIndex++] = kernelCalculateAwayVector(boids[globalIndex], blockBoids[i]);
         }
     }
-    __syncthreads();
+    __syncthreads(); // wait for threads to finish in order to use awayVectors
 
     for (int i = 0; i < TPB; i++) {
         if (localThread == i) continue;
+        if (blockBoids[i].valid == false) continue;
         float distance = kernelDistanceBoidAB(boids[globalIndex], blockBoids[i]);
 
         if (distance <= PERCEPTION_RADIUS) {
             validBoids[validBoidsIndex++] = blockBoids[i];
         }
     }
-    __syncthreads();
+    __syncthreads(); // wait for thread to finish in order to use validBoids
 
     float2 averageSeparation = kernelSeparationAverage(awayVectors, boidsWithinSeparation);
     float2 averageAlignment = kernelAlignmentAverage(validBoids, boidsWithinPerception);

@@ -17,12 +17,13 @@ constexpr float PERCEPTION_RADIUS = 15.0f;
 constexpr float SEPARATION_RADIUS = 5.0f;
 
 struct Boid {
-    float2 position = {};
-    float2 velocity = {};
+    bool valid = false;
+    float2 position = {0.0f, 0.0f};
+    float2 velocity = {0.0f, 0.0f};
 };
 
 
-inline __host__ __device__ float2 operator -(const float2 &a, const float2 &b) {
+inline __host__ __device__ float2 operator -(const float2 a, const float2 b) {
     return {a.x - b.x, a.y - b.y};
 }
 
