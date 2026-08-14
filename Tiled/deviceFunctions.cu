@@ -17,47 +17,7 @@ __device__ float2 kernelCalculateAwayVector(Boid &boidSelf, Boid &boidNeighbor) 
     return boidSelf.position - boidNeighbor.position;
 }
 
-// when passing validAwayVector make sure its size if of validBoidCount
-// We are assuming here that all values passed are valid
-/////
-
-
-__device__ float2 kernelAlignmentAverage(const Boid *validBoids, int validBoidCount) {
-    if (validBoidCount == 0) return {0.0f};
-
-    float2 alignment = {0.0f, 0.0f};
-
-    for (int i = 0; i < validBoidCount; i++) {
-        alignment.x += validBoids[i].velocity.x;
-        alignment.y += validBoids[i].velocity.y;
-    }
-
-    alignment.x /= static_cast<float>(validBoidCount);
-    alignment.y /= static_cast<float>(validBoidCount);
-
-    return alignment;
-}
-
-__device__ float2 kernelCohesionAverage(const Boid *validBoids, int validBoidCount) {
-    if (validBoidCount == 0) return {0.0f, 0.0f};
-
-    float2 cohesion = {0.0f, 0.0f};
-
-    for (int i = 0; i < validBoidCount; i++) {
-        cohesion.x += validBoids[i].position.x;
-        cohesion.y += validBoids[i].position.y;
-    }
-
-    cohesion.x /= static_cast<float>(validBoidCount);
-    cohesion.y /= static_cast<float>(validBoidCount);
-
-    return cohesion;
-}
-
-/////
-
-__device__ float2
-kernelCalculateAcceleration(float2 averageSeparation, float2 averageAlignment, float2 averageCohesion) {
+__device__ float2 kernelCalculateAcceleration(float2 averageSeparation, float2 averageAlignment, float2 averageCohesion) {
     float2 acceleration = {0.0f, 0.0f};
 
     acceleration.x = SEPARATION_WEIGHT * averageSeparation.x + ALIGNMENT_WEIGHT * averageAlignment.x + COHESION_WEIGHT * averageCohesion.x;
@@ -70,6 +30,7 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int localThread = threadIdx.x;
 
+    // accumulators to be used after tile/block loop
     float2 globalSeparationSum = {0.0f, 0.0f};
     float2 globalAlignmentSum = {0.0f, 0.0f};
     float2 globalCohesionSum = {0.0f, 0.0f};
@@ -95,8 +56,11 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
         int boidsWithinPerception = 0;
         int boidsWithinSeparation = 0;
 
+        // loop trough current loaded blocks tiles
         for (int i = 0; i < TPB; i++) {
+
             unsigned threadIndex = i + TPB * tile;
+
             if (globalIndex >= N_BOIDS) continue;
             if (globalIndex == threadIndex) continue;
             if (blockBoids[i].valid == false) continue;
@@ -123,13 +87,13 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
 
     if (globalIndex < N_BOIDS) {
         // create partial acceleration if separation or perception returns 0
-        if (globalBoidsWithinSeparation == 0) {
+        if (globalBoidsWithinSeparation == 0 && globalBoidsWithinPerception != 0) {
             float2 averageAlignment = globalAlignmentSum / globalBoidsWithinPerception;
             float2 averageCohesion = globalCohesionSum / globalBoidsWithinPerception;
 
             averageAlignment = averageAlignment - boids[globalIndex].velocity;
 
-            averageAlignment = averageCohesion - boids[globalIndex].position;
+            averageCohesion = averageCohesion - boids[globalIndex].position;
 
             float2 acceleration = kernelCalculateAcceleration({0.0f, 0.0f}, averageAlignment, averageCohesion);
 
@@ -138,7 +102,7 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
             return;
         }
 
-        if (globalBoidsWithinPerception == 0) {
+        if (globalBoidsWithinPerception == 0 && globalBoidsWithinSeparation != 0) {
             float2 averageSeparation = globalSeparationSum / globalBoidsWithinSeparation;
 
             float2 acceleration = kernelCalculateAcceleration(averageSeparation, {0.0f, 0.0f}, {0.0f, 0.0f});
@@ -155,14 +119,13 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
         }
         ////
 
-
         // if we have all values make final acceleration
         float2 averageSeparation = globalSeparationSum / globalBoidsWithinSeparation;
         float2 averageAlignment = globalAlignmentSum / globalBoidsWithinPerception;
         float2 averageCohesion = globalCohesionSum / globalBoidsWithinPerception;
 
         averageAlignment = averageAlignment - boids[globalIndex].velocity;
-        averageAlignment = averageCohesion - boids[globalIndex].position;
+        averageCohesion = averageCohesion - boids[globalIndex].position;
 
         float2 acceleration = kernelCalculateAcceleration(averageSeparation, averageAlignment, averageCohesion);
 
@@ -170,6 +133,42 @@ __global__ void kernelMakeBoidAcceleration(Boid *boids, float2 *accelerationOut)
     }
 }
 
-__global__ void integrateBoids(Boid *boids, const float2 *accelerationIn) {
+__global__ void kernelIntegrateBoids(Boid *boids, float2 *accelerationIn) {
+    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
+    if (globalIndex >= N_BOIDS) return;
+
+    float2 newPosition = {0.0f, 0.0f};
+    float2 newVelocity = {0.0f, 0.0f};
+
+    newVelocity = boids[globalIndex].velocity + (accelerationIn[globalIndex] * DT);
+    newPosition = boids[globalIndex].position + (newVelocity * DT);
+
+    boids[globalIndex].position = newPosition;
+    boids[globalIndex].velocity = newVelocity;
+}
+
+__device__ void kernelInitStates(curandState *states, unsigned int seed, unsigned int index) {
+    curand_init(seed, index, 0, &states[index]);
+}
+
+__device__ float2 kernelRandFloat2(curandState *state) {
+    float2 rand = {0.0f, 0.0f};
+
+    rand.x = curand_uniform(state) * 10;
+    rand.y = curand_uniform(state) * 10;
+
+    return rand;
+}
+
+__global__ void kernelLoadBoids(Boid *boids, curandState *states, const unsigned int seed) {
+    unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (globalIndex >= N_BOIDS) return;
+
+    kernelInitStates(states, seed, globalIndex);
+
+    boids[globalIndex].position = kernelRandFloat2(&states[globalIndex]);
+    boids[globalIndex].velocity = kernelRandFloat2(&states[globalIndex]);
+    boids[globalIndex].valid = true;
 }

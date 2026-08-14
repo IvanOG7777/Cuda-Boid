@@ -120,7 +120,7 @@ __global__ void kernelRunBoids(Boid *boids, float2 *accelerationOut) {
             boidsWithinPerception++;
         }
         if (distance <= SEPARATION_RADIUS) {
-            localAwayVector[i] = kernelAwayVector(boids[globalIndex], boids[i]);
+            localAwayVector[i] = kernelMakeAwayVector(boids[globalIndex], boids[i]);
             boidsWithinSeparation++;
         } else {
             localAwayVector[i] = {0,0};
@@ -176,8 +176,8 @@ __device__ void kernelInitState(curandState *states, const unsigned int seed) {
 __device__ float2 kernelRandFloat2(curandState *state) {
     float2 rand = {};
 
-    rand.x = curand_uniform(state);
-    rand.y = curand_uniform(state);
+    rand.x = curand_uniform(state) * 10;
+    rand.y = curand_uniform(state) * 10;
 
     return rand;
 }
