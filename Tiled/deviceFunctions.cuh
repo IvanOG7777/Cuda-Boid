@@ -38,6 +38,10 @@ inline __host__ __device__ float2 operator *(const float scaler, const float2 &a
     return a * scaler;
 }
 
+inline __host__ __device__ float2 operator +=(float2 &a, float2 &b) {
+    return {a.x + b.x, a.y + b.y};
+}
+
 
 __device__ float kernelDistanceBoidAB(const Boid &boidSelf, const Boid &boidNeighbor);
 __device__ float2 kernelCalculateAwayVector(Boid &boidSelf, Boid &boidNeighbor);
