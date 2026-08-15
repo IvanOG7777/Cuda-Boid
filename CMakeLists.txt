@@ -24,11 +24,18 @@ add_executable(BoidTiled
         Tiled/deviceFunctions.cuh
 )
 
-#target_include_directories(Visual-N-Body PRIVATE
-#        ${CMAKE_SOURCE_DIR}/Visual/Libraries/include
-#)
-#
-#target_link_libraries(Visual-N-Body PRIVATE
-#        ${CMAKE_SOURCE_DIR}/Visual/Libraries/lib/glfw3.lib
-#        opengl32
-#)
+
+add_executable(BoidVisual
+        Visual/Source/main.cu
+        Visual/Source/deviceFunctions.cu
+        Visual/Header/deviceFunctions.cuh
+)
+
+target_include_directories(BoidVisual PRIVATE
+        ${CMAKE_SOURCE_DIR}/Visual/Libraries/include
+)
+
+target_link_libraries(BoidVisual PRIVATE
+        ${CMAKE_SOURCE_DIR}/Visual/Libraries/lib/glfw3.lib
+        opengl32
+)
