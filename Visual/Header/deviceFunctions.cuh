@@ -5,6 +5,16 @@
 #ifndef CUDAPRACTICE_DEVICEFUNCTIONS_CUH
 #define CUDAPRACTICE_DEVICEFUNCTIONS_CUH
 
+constexpr int N_BOIDS = 100;
+constexpr int TPB = 64;
+constexpr int BLOCKS = (N_BOIDS + TPB - 1) / TPB;
+constexpr float MAX_TIME = 10.0f;
+constexpr float DT = 0.016f;
+constexpr float SEPARATION_WEIGHT = 1.5f;
+constexpr float ALIGNMENT_WEIGHT = 1.0f;
+constexpr float COHESION_WEIGHT = 1.0f;
+constexpr float PERCEPTION_RADIUS = 15.0f;
+constexpr float SEPARATION_RADIUS = 5.0f;
 
 struct Boid {
     bool valid = false;
@@ -18,5 +28,6 @@ inline float2 operator -(float2 &a, float2 &b) {
 
 __device__ float kernelDistanceAB(const Boid &boidSelf, const Boid &boidNeighbor);
 __device__ float2 kernelCalculateAwayVector(Boid &boidSelf, Boid &boidNeighbor);
+__global__ void kernelMakeAcceleration(Boid *boids, float2 *accelerationsIn);
 
 #endif //CUDAPRACTICE_DEVICEFUNCTIONS_CUH
