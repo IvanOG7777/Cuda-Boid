@@ -12,8 +12,11 @@
 
 GLFWwindow *createWindow(int w, int h, const char* title);
 
-const char* makeVertexShader() {
-    return G
-}
+const char* makeVertexShader();
+const char* makeFragmentShader();
+
+void setVAO(GLuint &VAO, GLuint &VBO, GLenum drawHint);
+
+GLuint compileShader(const char *shader, GLenum shaderType);
 
 #endif //CUDAPRACTICE_GLUTILS_CUH

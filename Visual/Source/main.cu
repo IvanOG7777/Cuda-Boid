@@ -30,7 +30,22 @@ int main() {
         return -1;
     }
 
-    GLuint VBO = 0, VAO = 0;
+    GLuint VAO = 0, VBO = 0;
+    setVAO(VAO, VBO, GL_DYNAMIC_DRAW);
+
+    const char* vertexShader = makeVertexShader();
+    const char* fragmentShader = makeFragmentShader();
+
+    GLuint VS = compileShader(vertexShader, GL_VERTEX_SHADER);
+    GLuint FS = compileShader(fragmentShader, GL_FRAGMENT_SHADER);
+
+    GLint program = glCreateProgram();
+    glAttachShader(program, VS);
+    glAttachShader(program, FS);
+    glLinkProgram(program);
+    glDeleteShader(VS);
+    glDeleteShader(FS);
+
 
     Boid *deviceBoids = nullptr;
     curandState *deviceStates = nullptr;
