@@ -5,6 +5,8 @@
 #ifndef CUDAPRACTICE_DEVICEFUNCTIONS_CUH
 #define CUDAPRACTICE_DEVICEFUNCTIONS_CUH
 
+#include <curand_kernel.h>
+
 constexpr int N_BOIDS = 100;
 constexpr int TPB = 64;
 constexpr int BLOCKS = (N_BOIDS + TPB - 1) / TPB;
@@ -22,12 +24,34 @@ struct Boid {
     float2 velocity = {};
 };
 
-inline float2 operator -(float2 &a, float2 &b) {
+inline __host__ __device__ float2 operator +(const float2 &a, const float2 &b) {
+    return {a.x + b.x, a.y + b.y};
+}
+
+inline __host__ __device__ float2 operator -(const float2 &a, const float2 &b) {
     return {a.x - b.x, a.y - b.y};
+}
+
+inline __host__ __device__ float2 operator +=(float2 &a, float2 &b) {
+    a.x = a.x - b.x;
+    a.y = a.y - b.y;
+
+    return a;
+}
+
+inline __host__ __device__ float2 operator *(const float2 &a, float scalar) {
+    return {a.x * scalar, a.y * scalar};
+}
+
+inline __host__ __device__ float2 operator /(float2 &a, float scalar) {
+    return {a.x / scalar, a.y / scalar};
 }
 
 __device__ float kernelDistanceAB(const Boid &boidSelf, const Boid &boidNeighbor);
 __device__ float2 kernelCalculateAwayVector(Boid &boidSelf, Boid &boidNeighbor);
-__global__ void kernelMakeAcceleration(Boid *boids, float2 *accelerationsIn);
+__device__ float2 kernelCalculateAcceleration(const float2 &separation, const float2 &alignment, const float2 &cohesion);
+__global__ void kernelMakeAcceleration(Boid *boids, float2 *accelerationsOut);
+
+__global__ void kernelInitBoids(Boid *boids, curandState *states, unsigned int seed);
 
 #endif //CUDAPRACTICE_DEVICEFUNCTIONS_CUH

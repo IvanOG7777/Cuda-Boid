@@ -12,4 +12,8 @@
 
 GLFWwindow *createWindow(int w, int h, const char* title);
 
+const char* makeVertexShader() {
+    return G
+}
+
 #endif //CUDAPRACTICE_GLUTILS_CUH

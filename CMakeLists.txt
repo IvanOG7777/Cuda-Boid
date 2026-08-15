@@ -29,6 +29,8 @@ add_executable(BoidVisual
         Visual/Source/main.cu
         Visual/Source/deviceFunctions.cu
         Visual/Header/deviceFunctions.cuh
+        Visual/Header/glUtils.cuh
+        Visual/Source/glUtils.cu
 )
 
 target_include_directories(BoidVisual PRIVATE
