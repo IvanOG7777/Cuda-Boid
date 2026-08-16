@@ -156,4 +156,5 @@ __global__ void kernelInitBoids(Boid *boids, curandState *states, unsigned int s
 
     boids[globalIndex].position = position;
     boids[globalIndex].velocity = velocity;
+    boids[globalIndex].valid = true;
 }
