@@ -51,6 +51,7 @@ __device__ float kernelDistanceAB(const Boid &boidSelf, const Boid &boidNeighbor
 __device__ float2 kernelCalculateAwayVector(Boid &boidSelf, Boid &boidNeighbor);
 __device__ float2 kernelCalculateAcceleration(const float2 &separation, const float2 &alignment, const float2 &cohesion);
 __global__ void kernelMakeAcceleration(Boid *boids, float2 *accelerationsOut);
+__global__ void kernelIntegrateBoids(Boid *boids, float2 *accelerationsIn);
 
 __global__ void kernelInitBoids(Boid *boids, curandState *states, unsigned int seed);
 

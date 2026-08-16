@@ -109,7 +109,7 @@ __global__ void kernelMakeAcceleration(Boid *boids, float2 *accelerationsOut) {
     }
 }
 
-__global__ void integrateBoid(Boid *boids, float2 *accelerationsIn) {
+__global__ void kernelIntegrateBoids(Boid *boids, float2 *accelerationsIn) {
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
     float2 newPosition = {0.0f, 0.0f};

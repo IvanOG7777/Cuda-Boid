@@ -2,9 +2,10 @@
 // Created by elder on 8/14/2026.
 //
 
-#include "../Header/glUtils.cuh"
+#include <iostream>
 
-#include "../../Tiled/deviceFunctions.cuh"
+#include "../Header/glUtils.cuh"
+#include "../Header/deviceFunctions.cuh"
 
 
 GLFWwindow *createWindow(int w, int h, const char* title) {
@@ -26,13 +27,16 @@ const char *makeVertexShader() {
     return R"GLSL(
         #version 330 core
 
-        layout (location = 0) vec2 aPos;
-        layout (location = 1) vec2 aVel;
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aVel;
 
-        out vec3 aColor;
+        out vec3 vertexColor;
 
         void main() {
-
+            vec2 screenPosition = aPos * 2.0 - 1.0;
+            gl_Position = vec4(screenPosition, 0.0, 1.0);
+            gl_PointSize = 2.0;
+            vertexColor = vec3(1.0, 1.0, 1.0);
         }
     )GLSL";
 }
@@ -43,8 +47,10 @@ const char *makeFragmentShader() {
 
         in vec3 vertexColor;
 
-        void main() {
+        out vec4 FragColor;
 
+        void main() {
+            FragColor = vec4(vertexColor, 1.0);
         }
     )GLSL";
 }
@@ -57,19 +63,19 @@ void setVAO(GLuint &VAO, GLuint &VBO, GLenum drawHint) {
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-    glBufferData(VBO, N_BOIDS * sizeof(Boid), nullptr, drawHint);
+    glBufferData(GL_ARRAY_BUFFER, N_BOIDS * sizeof(Boid), nullptr, drawHint);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Boid), reinterpret_cast<void *>(offsetof(Boid, position)));
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Boid), reinterpret_cast<void *>(offsetof(Boid, position)));
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Boid), reinterpret_cast<void *>(offsetof(Boid, velocity)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Boid), reinterpret_cast<void *>(offsetof(Boid, velocity)));
     glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
 
-GLuint compileProgram(const char *shader, const GLenum shaderType) {
+GLuint compileShader(const char *shader, const GLenum shaderType) {
     GLuint s = glCreateShader(shaderType);
     glShaderSource(s, 1, &shader, nullptr);
     glCompileShader(s);

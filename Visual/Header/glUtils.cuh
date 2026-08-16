@@ -5,7 +5,6 @@
 #ifndef CUDAPRACTICE_GLUTILS_CUH
 #define CUDAPRACTICE_GLUTILS_CUH
 
-#include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -17,6 +16,6 @@ const char* makeFragmentShader();
 
 void setVAO(GLuint &VAO, GLuint &VBO, GLenum drawHint);
 
-GLuint compileShader(const char *shader, GLenum shaderType);
+GLuint compileShader(const char *shader, const GLenum shaderType);
 
 #endif //CUDAPRACTICE_GLUTILS_CUH

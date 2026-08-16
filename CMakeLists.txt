@@ -31,6 +31,7 @@ add_executable(BoidVisual
         Visual/Header/deviceFunctions.cuh
         Visual/Header/glUtils.cuh
         Visual/Source/glUtils.cu
+        Visual/Source/glad.c
 )
 
 target_include_directories(BoidVisual PRIVATE
