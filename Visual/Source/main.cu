@@ -23,7 +23,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow *window = createWindow(1280, 720, "Boid Visual");
+    GLFWwindow *window = createWindow(1920, 1080, "Boid Visual");
     glfwMakeContextCurrent(window);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
@@ -76,7 +76,7 @@ int main() {
     cudaGraphicsResourceGetMappedPointer(reinterpret_cast<void**>(&deviceBoids), &bytes, cudaResource);
     kernelInitBoids<<<BLOCKS, TPB>>>(deviceBoids, deviceStates, 123ULL);
     cudaDeviceSynchronize();
-    cudaGraphicsMapResources(1, &cudaResource, nullptr);
+    cudaGraphicsUnmapResources(1, &cudaResource, nullptr);
 
 
     glEnable(GL_PROGRAM_POINT_SIZE);
@@ -87,7 +87,7 @@ int main() {
 
         cudaGraphicsMapResources(1, &cudaResource, nullptr);
 
-        cudaGraphicsResourceGetMappedPointer((void**)&cudaResource, &numBytes, cudaResource);
+        cudaGraphicsResourceGetMappedPointer((void**)&deviceBoids, &numBytes, cudaResource);
 
         kernelMakeAcceleration<<<BLOCKS, TPB>>>(deviceBoids, deviceAccelerations);
         cudaDeviceSynchronize();

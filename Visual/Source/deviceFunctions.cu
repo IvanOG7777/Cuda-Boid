@@ -54,11 +54,12 @@ __global__ void kernelMakeAcceleration(Boid *boids, float2 *accelerationsOut) {
         int boidsWithinSeparation = 0;
 
         for (int i = 0; i < TPB; i++) {
-            unsigned tileBoidIndex = i + TPB * tileIndex; // used as sort of globalIndex but within blockBoids
+            unsigned int tileBoidIndex = i + TPB * block; // used as sort of globalIndex but within blockBoids
 
+            if (globalIndex >= N_BOIDS) continue;
+            if (tileBoidIndex >= N_BOIDS) continue;
             if (globalIndex == tileBoidIndex) continue;
-            if (blockBoids[tileBoidIndex].valid == false) continue;
-            if (globalIndex >= N_BOIDS) return;
+            if (blockBoids[i].valid == false) continue;
 
             float distance = kernelDistanceAB(boids[globalIndex], blockBoids[i]);
 
@@ -86,6 +87,9 @@ __global__ void kernelMakeAcceleration(Boid *boids, float2 *accelerationsOut) {
             float2 averageAlignment = alignmentSum / static_cast<float>(totalBoidsWithinPerception);
             float2 averageCohesion = cohesionSum / static_cast<float>(totalBoidsWithinPerception);
 
+            averageAlignment = averageAlignment - boids[globalIndex].velocity;
+            averageCohesion = averageCohesion - boids[globalIndex].position;
+
             float2 acceleration = kernelCalculateAcceleration({0.0f, 0.0f}, averageAlignment, averageCohesion);
 
             accelerationsOut[globalIndex] = acceleration;
@@ -102,6 +106,9 @@ __global__ void kernelMakeAcceleration(Boid *boids, float2 *accelerationsOut) {
             float2 averageCohesion = cohesionSum / static_cast<float>(totalBoidsWithinPerception);
             float2 averageSeparation = separationSum /static_cast<float>(totalBoidsWithinSeparation);
 
+            averageAlignment = averageAlignment - boids[globalIndex].velocity;
+            averageCohesion = averageCohesion - boids[globalIndex].position;
+
             float2 acceleration = kernelCalculateAcceleration(averageSeparation, averageAlignment, averageCohesion);
 
             accelerationsOut[globalIndex] = acceleration;
@@ -111,6 +118,8 @@ __global__ void kernelMakeAcceleration(Boid *boids, float2 *accelerationsOut) {
 
 __global__ void kernelIntegrateBoids(Boid *boids, float2 *accelerationsIn) {
     unsigned int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (globalIndex >= N_BOIDS) return;
 
     float2 newPosition = {0.0f, 0.0f};
     float2 newVelocity = {0.0f, 0.0f};
@@ -129,8 +138,8 @@ __device__ void kernelInitStates(curandState *states, unsigned int seed, unsigne
 __device__ float2 randFloat2(curandState *states, unsigned int index) {
     float2 rand = {0.0f, 0.0f};
 
-    rand.x = curand_uniform(&states[index]);
-    rand.y = curand_uniform(&states[index]);
+    rand.x = curand_uniform(&states[index]) * 2.0f - 1.0f;
+    rand.y = curand_uniform(&states[index]) * 2.0f - 1.0f;
 
     return rand;
 }

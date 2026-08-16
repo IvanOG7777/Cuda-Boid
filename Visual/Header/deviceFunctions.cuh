@@ -7,16 +7,16 @@
 
 #include <curand_kernel.h>
 
-constexpr int N_BOIDS = 100;
+constexpr int N_BOIDS = 1000;
 constexpr int TPB = 64;
 constexpr int BLOCKS = (N_BOIDS + TPB - 1) / TPB;
 constexpr float MAX_TIME = 10.0f;
-constexpr float DT = 0.016f;
-constexpr float SEPARATION_WEIGHT = 1.5f;
+constexpr float DT = 0.0020833f;
+constexpr float SEPARATION_WEIGHT = 0.5f;
 constexpr float ALIGNMENT_WEIGHT = 1.0f;
 constexpr float COHESION_WEIGHT = 1.0f;
-constexpr float PERCEPTION_RADIUS = 15.0f;
-constexpr float SEPARATION_RADIUS = 5.0f;
+constexpr float PERCEPTION_RADIUS = 0.2f;
+constexpr float SEPARATION_RADIUS = 0.1f;
 
 struct Boid {
     bool valid = false;
@@ -33,8 +33,8 @@ inline __host__ __device__ float2 operator -(const float2 &a, const float2 &b) {
 }
 
 inline __host__ __device__ float2 operator +=(float2 &a, float2 &b) {
-    a.x = a.x - b.x;
-    a.y = a.y - b.y;
+    a.x = a.x + b.x;
+    a.y = a.y + b.y;
 
     return a;
 }
